@@ -1,61 +1,64 @@
-from handlers import MongorestHandler
+from handlers import BaseHandler, MongoRestHandler, GridfsHandler
 import tornado.httpserver
 import tornado.ioloop
 from tornado.options import define, options
-from pymongo import Connection
-from pymongo.errors import ConnectionFailure, ConfigurationError
-
+from pymongo import MongoClient
+from pymongo.read_preferences import ReadPreference
+import os
 
 define("port", default=8889, help="run on the given port", type=int)
 define("xorigin", default='*', help="xorigin", type=basestring)
-define("mongos", default='localhost', help="mongos", type=basestring)
+define("hosts", default='localhost', help="hosts", type=basestring)
+define("reps", default='', help="replicaSet", type=basestring)
+define("tags", default='', help="tag set", type=basestring)
 
 
 class Application(tornado.web.Application):
 
     def __init__(self):
         handlers = [
-            (r"/([a-z0-9_]+)/([a-z0-9_]+)", MongorestHandler, dict(xorigin=options.xorigin))
+            (r"/([a-z0-9_]+)", BaseHandler, dict(xorigin=options.xorigin)),
+            (r"/([a-z0-9_]+)/([a-z0-9_]+)", MongoRestHandler, dict(xorigin=options.xorigin)),
+            (r"/gridfs/([a-z0-9_]+)/([a-z0-9_]+)", GridfsHandler),
+            (r"/(.*)", tornado.web.StaticFileHandler, {'path': os.path.dirname(os.path.abspath(__file__)) })
         ]
-        settings = dict()
-        tornado.web.Application.__init__(self, handlers, **settings)
+        tornado.web.Application.__init__(self, handlers)
 
         # Have one global connection to the blog DB across all handlers
-        self.connections = {}
+        self.connection = None
         self.cursors = {}
         self._cursor_id = 0
 
-        mongos = options.mongos.split(',')
-        for host in mongos:
-            if len(mongos) == 1:
-                name = "default"
-            else:
-                name = host.replace(".", "")
-                name = name.replace(":", "")
+        self._get_connection()
 
-            self._get_connection(name = name, uri=host)
+    def _get_connection(self):
 
-    def _get_connection(self, name = None, uri='mongodb://localhost:27017'):
-        if name == None:
-            name = "default"
+        if not self.connection:
+            try:
+                settings = {
+                    'socketTimeoutMS': 30000,
+                    'connectTimeoutMS': 10000,
+                    'read_preference': ReadPreference.SECONDARY_PREFERRED
+                }
+                if options.reps:
+                    settings.replicaSet = options.reps
+                    settings.tag_sets = options.tags and [{'dc': options.tags}, {}] or [{}]
+                
+                self.connection = MongoClient(options.hosts, **settings)
+            
+            except:
+                return None
 
-        if name in self.connections:
-            return self.connections[name]
-
-        try:
-            connection = Connection(uri, network_timeout = 2)
-        except (ConnectionFailure, ConfigurationError):
-            return None
-
-        self.connections[name] = connection
-        return connection
+        return self.connection
 
 
 def main():
     tornado.options.parse_command_line()
     http_server = tornado.httpserver.HTTPServer(Application())
     http_server.listen(options.port)
+    print "server started..."
     tornado.ioloop.IOLoop.instance().start()
+
 
 if __name__ == "__main__":
     main()
