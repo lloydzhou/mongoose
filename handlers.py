@@ -69,7 +69,7 @@ class BaseHandler(tornado.web.RequestHandler):
 
         batch_size = int(self.get_argument('batch_size', 15))
 
-        self.__output_results(cursor, batch_size, cid)
+        self._output_results(cursor, batch_size, cid)
 
     def post(self, cmd):
         
@@ -89,7 +89,7 @@ class BaseHandler(tornado.web.RequestHandler):
     def options(self, db, collection):
         pass
 
-    def __output_results(self, cursor, batch_size=15, cid=None):
+    def _output_results(self, cursor, batch_size=15, cid=None):
         """
         Iterate through the next batch
         """
@@ -110,7 +110,7 @@ class BaseHandler(tornado.web.RequestHandler):
 
         self.write(json.dumps({"results" : batch, "id" : cid, "ok" : 1}, default=json_util.default))
 
-    def __safety_check(self, db):
+    def _safety_check(self, db):
 
         safe = bool(self.get_argument('safe', False))
 
@@ -162,7 +162,7 @@ class MongoRestHandler(BaseHandler):
 
         batch_size = int(self.get_argument('batch_size', 15))
 
-        self.__output_results(cursor, batch_size, cid)
+        self._output_results(cursor, batch_size, cid)
 
     def put(self, db, collection):
         """
@@ -195,7 +195,7 @@ class MongoRestHandler(BaseHandler):
 
         self.conn[db][collection].update(criteria, newobj, upsert=upsert, multi=multi)
 
-        self.__safety_check(self.conn[db])
+        self._safety_check(self.conn[db])
 
 
     def delete(self, db, collection):
