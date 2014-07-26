@@ -206,7 +206,7 @@ class MongoRestHandler(BaseHandler):
         if criteria and len(criteria) > 0:
             result = conn[db][collection].remove(criteria)
 
-            self.__safety_check(conn[db])
+            self._safety_check(conn[db])
 
 
 class GridfsHandler(MongoRestHandler):
