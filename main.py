@@ -18,9 +18,11 @@ class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
             (r"/([a-z0-9_]+)", BaseHandler, dict(xorigin=options.xorigin)),
-            (r"/([a-z0-9_]+)/([a-z0-9_]+)", MongoRestHandler, dict(xorigin=options.xorigin)),
+            (r"/([a-z0-9_]+)/([a-z0-9_]+)",
+             MongoRestHandler, dict(xorigin=options.xorigin)),
             (r"/gridfs/([a-z0-9_]+)/([a-z0-9_]+)", GridfsHandler),
-            (r"/(.*)", tornado.web.StaticFileHandler, {'path': os.path.dirname(os.path.abspath(__file__)) })
+            (r"/(.*)", tornado.web.StaticFileHandler,
+             {'path': os.path.dirname(os.path.abspath(__file__))})
         ]
         tornado.web.Application.__init__(self, handlers)
 
@@ -42,10 +44,11 @@ class Application(tornado.web.Application):
                 }
                 if options.reps:
                     settings.replicaSet = options.reps
-                    settings.tag_sets = options.tags and [{'dc': options.tags}, {}] or [{}]
-                
+                    settings.tag_sets = options.tags and [
+                        {'dc': options.tags}, {}] or [{}]
+
                 self.connection = MongoClient(options.hosts, **settings)
-            
+
             except:
                 return None
 
@@ -62,4 +65,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

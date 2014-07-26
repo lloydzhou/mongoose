@@ -1,8 +1,6 @@
 import tornado.web
-
-from bson.son import SON
-from pymongo import Connection, ASCENDING, DESCENDING
-from pymongo.errors import ConnectionFailure, ConfigurationError, OperationFailure, AutoReconnect
+from pymongo import ASCENDING, DESCENDING
+from pymongo.errors import OperationFailure, AutoReconnect
 from bson import json_util
 
 import re
@@ -11,32 +9,36 @@ try:
 except ImportError:
     import simplejson as json
 
+
 class BaseHandler(tornado.web.RequestHandler):
 
     def initialize(self, xorigin):
 
         self.set_header('Access-Control-Allow-Origin', xorigin)
-        self.set_header('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE, OPTIONS')
+        self.set_header(
+            'Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE, OPTIONS')
         self.set_header('Content-Type', 'application/json')
 
         self.conn = self.application._get_connection()
         if self.conn == None:
-            self.write('{"ok" : 0, "errmsg" : "couldn\'t get connection to mongo"}')
+            self.write(
+                '{"ok" : 0, "errmsg" : "couldn\'t get connection to mongo"}')
             self._finished = True
 
     def get(self, cmd):
 
         if cmd == 'hello':
             return self.write('{"ok" : 1, "msg" : "Uh, we had a slight weapons malfunction, but ' +
-                'uh... everything\'s perfectly all right now. We\'re fine. We\'re ' +
-                'all fine here now, thank you. How are you?"}')
+                              'uh... everything\'s perfectly all right now. We\'re fine. We\'re ' +
+                              'all fine here now, thank you. How are you?"}')
 
         if cmd == 'status':
-            result = {"ok" : 1, "connections" : self.conn.server_info()}
+            result = {"ok": 1, "connections": self.conn.server_info()}
 
             return self.write(json.dumps(result))
 
-#        be carefule to using this function!!! it can drop database and shutdown the server!!!
+# be carefule to using this function!!! it can drop database and shutdown
+# the server!!!
 
 #        if cmd == 'run':
 
@@ -72,7 +74,7 @@ class BaseHandler(tornado.web.RequestHandler):
         self._output_results(cursor, batch_size, cid)
 
     def post(self, cmd):
-        
+
         if cmd == 'authenticate':
 
             username = self.get_argument('username', None)
@@ -99,16 +101,18 @@ class BaseHandler(tornado.web.RequestHandler):
             while len(batch) < batch_size:
                 batch.append(cursor.next())
         except AutoReconnect:
-            self.write(json.dumps({"ok" : 0, "errmsg" : "auto reconnecting, please try again"}))
+            self.write(
+                json.dumps({"ok": 0, "errmsg": "auto reconnecting, please try again"}))
             return
         except OperationFailure, of:
-            self.write(json.dumps({"ok" : 0, "errmsg" : "%s" % of}))
+            self.write(json.dumps({"ok": 0, "errmsg": "%s" % of}))
             return
         except StopIteration:
             # this is so stupid, there's no has_next?
             pass
 
-        self.write(json.dumps({"results" : batch, "id" : cid, "ok" : 1}, default=json_util.default))
+        self.write(
+            json.dumps({"results": batch, "id": cid, "ok": 1}, default=json_util.default))
 
     def _safety_check(self, db):
 
@@ -133,6 +137,7 @@ class BaseHandler(tornado.web.RequestHandler):
             return None
         return obj
 
+
 class MongoRestHandler(BaseHandler):
 
     def get(self, db, collection):
@@ -142,15 +147,17 @@ class MongoRestHandler(BaseHandler):
         limit = int(self.get_argument('limit', 0)) or 0
         skip = int(self.get_argument('skip', 0)) or 0
 
-        cursor = self.conn[db][collection].find(spec=criteria, fields=fields, limit=limit, skip=skip)
+        cursor = self.conn[db][collection].find(
+            spec=criteria, fields=fields, limit=limit, skip=skip)
 
         if self.get_argument('sort', None):
             sort = self._get_son('sort') or {}
-            stupid_sort = [[f, sort[f] == -1 and DESCENDING or ASCENDING] for f in sort]
+            stupid_sort = [[f, sort[f] == -1 and DESCENDING or ASCENDING]
+                           for f in sort]
             cursor.sort(stupid_sort)
 
         if bool(self.get_argument('explain', False)):
-            return self.write(json.dumps({"results" : [cursor.explain()], "ok" : 1}, default=json_util.default))
+            return self.write(json.dumps({"results": [cursor.explain()], "ok": 1}, default=json_util.default))
 
         cid = self.application._cursor_id
         self.application._cursor_id = self.application._cursor_id + 1
@@ -181,7 +188,6 @@ class MongoRestHandler(BaseHandler):
 
         self.write(json.dumps(result, default=json_util.default))
 
-
     def post(self, db, collection):
         # update a doc
 
@@ -193,10 +199,10 @@ class MongoRestHandler(BaseHandler):
         upsert = bool(self.get_argument('upsert', False))
         multi = bool(self.get_argument('multi', False))
 
-        self.conn[db][collection].update(criteria, newobj, upsert=upsert, multi=multi)
+        self.conn[db][collection].update(
+            criteria, newobj, upsert=upsert, multi=multi)
 
         self._safety_check(self.conn[db])
-
 
     def delete(self, db, collection):
         """
@@ -213,10 +219,12 @@ class GridfsHandler(MongoRestHandler):
 
     def get(self, db):
         pass
+
     def put(self, db):
         pass
+
     def post(self, db):
         pass
+
     def delete(self, db):
         pass
- 
